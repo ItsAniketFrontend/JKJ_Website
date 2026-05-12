@@ -41,9 +41,19 @@ if (hamburger && mobileMenu) {
   mobileMenu.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
       mobileMenu.classList.remove('open');
+      mobileMenu.querySelectorAll('.mobile-submenu.open').forEach(s => s.classList.remove('open'));
       hamburger.querySelectorAll('span').forEach(s => {
         s.style.transform = ''; s.style.opacity = '';
       });
+    });
+  });
+
+  // Mobile submenu (Collections) expand/collapse
+  mobileMenu.querySelectorAll('.mobile-submenu-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sub = btn.parentElement;
+      const isOpen = sub.classList.toggle('open');
+      btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
   });
 }
@@ -128,53 +138,57 @@ if (statsSection) {
 /* ---- Testimonials slider ---- */
 const track = document.getElementById('testiTrack');
 const dots  = document.querySelectorAll('#testiDots .dot-btn');
-let current = 0;
-let perView = () => window.innerWidth <= 768 ? 1 : 2;
-let autoTimer;
 
-function goTo(index) {
-  const cards = track.children;
-  const max = cards.length - perView();
-  current = Math.max(0, Math.min(index, max));
-  const w = cards[0].offsetWidth + 24;
-  track.style.transform = `translateX(-${current * w}px)`;
-  dots.forEach((d, i) => d.classList.toggle('active', i === current));
-}
+if (track) {
+  let current = 0;
+  const perView = () => window.innerWidth <= 768 ? 1 : 2;
+  let autoTimer;
 
-dots.forEach(d => d.addEventListener('click', () => {
-  clearInterval(autoTimer);
-  goTo(parseInt(d.dataset.index));
+  function goTo(index) {
+    const cards = track.children;
+    if (!cards.length) return;
+    const max = cards.length - perView();
+    current = Math.max(0, Math.min(index, max));
+    const w = cards[0].offsetWidth + 24;
+    track.style.transform = `translateX(-${current * w}px)`;
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+  }
+
+  dots.forEach(d => d.addEventListener('click', () => {
+    clearInterval(autoTimer);
+    goTo(parseInt(d.dataset.index));
+    startAuto();
+  }));
+
+  function startAuto() {
+    autoTimer = setInterval(() => {
+      const max = track.children.length - perView();
+      goTo(current >= max ? 0 : current + 1);
+    }, 5000);
+  }
   startAuto();
-}));
 
-function startAuto() {
-  autoTimer = setInterval(() => {
-    const max = track.children.length - perView();
-    goTo(current >= max ? 0 : current + 1);
-  }, 5000);
+  // Touch/swipe
+  let dragX = 0;
+  let dragging = false;
+  track.addEventListener('mousedown', e => { dragX = e.clientX; dragging = true; });
+  track.addEventListener('touchstart', e => { dragX = e.touches[0].clientX; dragging = true; }, { passive: true });
+
+  window.addEventListener('mouseup', e => {
+    if (!dragging) return;
+    dragging = false;
+    const diff = dragX - e.clientX;
+    if (Math.abs(diff) > 50) goTo(diff > 0 ? current + 1 : current - 1);
+  });
+  window.addEventListener('touchend', e => {
+    if (!dragging) return;
+    dragging = false;
+    const diff = dragX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) goTo(diff > 0 ? current + 1 : current - 1);
+  }, { passive: true });
+
+  window.addEventListener('resize', () => goTo(0), { passive: true });
 }
-startAuto();
-
-// Touch/swipe
-let dragX = 0;
-let dragging = false;
-track.addEventListener('mousedown', e => { dragX = e.clientX; dragging = true; });
-track.addEventListener('touchstart', e => { dragX = e.touches[0].clientX; dragging = true; }, { passive: true });
-
-window.addEventListener('mouseup', e => {
-  if (!dragging) return;
-  dragging = false;
-  const diff = dragX - e.clientX;
-  if (Math.abs(diff) > 50) goTo(diff > 0 ? current + 1 : current - 1);
-});
-window.addEventListener('touchend', e => {
-  if (!dragging) return;
-  dragging = false;
-  const diff = dragX - e.changedTouches[0].clientX;
-  if (Math.abs(diff) > 50) goTo(diff > 0 ? current + 1 : current - 1);
-}, { passive: true });
-
-window.addEventListener('resize', () => goTo(0), { passive: true });
 
 /* ---- Contact form ---- */
 const contactForm = document.getElementById('contactForm');
@@ -187,15 +201,28 @@ if (contactForm) {
     btn.disabled = true;
 
     setTimeout(() => {
-      btn.textContent = 'Enquiry Sent ✓';
+      btn.textContent = 'Message Sent ✓';
       btn.style.background = '#2d7a3a';
       setTimeout(() => {
         contactForm.reset();
+        const c = document.getElementById('msgCount');
+        if (c) { c.textContent = '0'; c.parentElement.classList.remove('near-limit'); }
         btn.textContent = orig;
         btn.style.background = '';
         btn.disabled = false;
       }, 3000);
     }, 1200);
+  });
+}
+
+/* ---- Message character counter (contact page) ---- */
+const msgField = document.getElementById('msgField');
+const msgCount = document.getElementById('msgCount');
+if (msgField && msgCount) {
+  msgField.addEventListener('input', () => {
+    const n = msgField.value.length;
+    msgCount.textContent = n;
+    msgCount.parentElement.classList.toggle('near-limit', n > 160);
   });
 }
 
